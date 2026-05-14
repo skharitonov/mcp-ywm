@@ -98,6 +98,8 @@ def get_user_id() -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -112,6 +114,8 @@ def get_hosts(user_id: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -127,6 +131,8 @@ def add_host(user_id: str, host_url: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -143,6 +149,8 @@ def get_host_info(user_id: str, host_id: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -193,6 +201,8 @@ def get_search_queries(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -229,6 +239,8 @@ def get_query_history(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -255,6 +267,8 @@ def get_search_urls(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -286,6 +300,8 @@ def get_indexing_stats(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -312,6 +328,8 @@ def get_sitemap_info(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -332,6 +350,8 @@ def add_sitemap(user_id: str, host_id: str, sitemap_url: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -348,6 +368,8 @@ def get_recrawl_quota(user_id: str, host_id: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -368,6 +390,8 @@ def add_recrawl_url(user_id: str, host_id: str, url: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -389,6 +413,8 @@ def get_site_problems(user_id: str, host_id: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -405,6 +431,8 @@ def get_recommendations(user_id: str, host_id: str) -> str:
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -434,6 +462,8 @@ def get_broken_internal_links(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -460,6 +490,8 @@ def get_external_links(
         return _ok(data)
     except WebmasterAPIError as e:
         return _err(e)
+    except ValueError as e:
+        return json.dumps({"error": True, "error_code": "AUTH_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════
