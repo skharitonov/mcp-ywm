@@ -301,7 +301,7 @@ def get_sitemap_info(
         user_id: Yandex Webmaster user ID
         host_id: Host ID in format https:example.com:443
         limit: Results per page (1–100, default 100)
-        offset: Cursor-based pagination (sitemap ID)
+        offset: Cursor-based pagination — pass a sitemap ID string to start from (not a numeric index)
     """
     try:
         c = get_client()
@@ -393,7 +393,7 @@ def get_site_problems(user_id: str, host_id: str) -> str:
 
 @mcp.tool()
 def get_recommendations(user_id: str, host_id: str) -> str:
-    """Get Yandex SEO recommendations for the site.
+    """Get Yandex SEO recommendations for the site. Returns the full diagnostics response which includes both problems and recommendations.
 
     Args:
         user_id: Yandex Webmaster user ID
