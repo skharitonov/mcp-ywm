@@ -1,4 +1,4 @@
-"""HTTP client + OAuth device flow for Yandex Webmaster API v4.1."""
+"""HTTP client + OAuth browser flow for Yandex Webmaster API v4.1."""
 
 import json
 import os
@@ -14,9 +14,7 @@ TIMEOUT = 30.0
 MAX_RETRIES = 3
 RETRY_STATUSES = {500, 502, 503}
 
-DEVICE_CODE_URL = "https://oauth.yandex.ru/device/code"
-TOKEN_URL = "https://oauth.yandex.ru/token"
-SCOPES = "webmaster:hostinfo webmaster:verify"
+AUTH_URL = "https://oauth.yandex.ru/authorize"
 
 
 def _token_dir() -> Path:
@@ -161,52 +159,15 @@ class WebmasterClient:
 
 
 class OAuthFlow:
-    """Yandex OAuth device code flow."""
+    """Yandex OAuth browser (implicit) flow."""
 
-    POLL_INTERVAL = 5      # seconds between token poll attempts
-    POLL_TIMEOUT = 300     # 5 minutes total
+    @staticmethod
+    def get_auth_url(client_id: str) -> str:
+        """Return the authorization URL for the user to open in a browser."""
+        return f"{AUTH_URL}?response_type=token&client_id={client_id}"
 
-    def request_device_code(self, client_id: str) -> dict:
-        """POST to device/code endpoint, return {device_code, user_code, verification_url, expires_in, interval}."""
-        resp = httpx.post(
-            DEVICE_CODE_URL,
-            data={"client_id": client_id, "scope": SCOPES},
-            timeout=15,
-        )
-        if resp.status_code != 200:
-            raise WebmasterAPIError(resp.status_code, "DEVICE_CODE_ERROR", resp.text)
-        return resp.json()
-
-    def poll_for_token(self, client_id: str, device_code: str) -> str:
-        """Poll TOKEN_URL until approved or timed out. Returns access_token string."""
-        deadline = time.time() + self.POLL_TIMEOUT
-        while time.time() < deadline:
-            resp = httpx.post(
-                TOKEN_URL,
-                data={
-                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                    "code": device_code,
-                    "client_id": client_id,
-                },
-                timeout=15,
-            )
-            try:
-                data = resp.json()
-            except Exception:
-                raise WebmasterAPIError(resp.status_code, "JSON_DECODE_ERROR", resp.text)
-            if resp.status_code == 200 and "access_token" in data:
-                return data["access_token"]
-            error = data.get("error", "")
-            if error == "authorization_pending":
-                time.sleep(self.POLL_INTERVAL)
-                continue
-            if error == "slow_down":
-                time.sleep(self.POLL_INTERVAL * 2)
-                continue
-            raise WebmasterAPIError(resp.status_code, error, data.get("error_description", ""))
-        raise WebmasterAPIError(0, "TIMEOUT", "Authorization timed out. Call start_auth again.")
-
-    def save_token(self, access_token: str) -> Path:
+    @staticmethod
+    def save_token(access_token: str) -> Path:
         """Save token to platform config dir (or YANDEX_WEBMASTER_TOKEN_DIR override)."""
         dir_path = _token_dir()
         dir_path.mkdir(parents=True, exist_ok=True)

@@ -35,7 +35,8 @@ An MCP server that connects Yandex Webmaster to AI assistants — ask questions 
 | Tool | What It Does | What You Need to Provide |
 |------|-------------|--------------------------|
 | `setup_oauth_app` | Returns step-by-step instructions for creating a Yandex OAuth app | Nothing |
-| `start_auth` | Starts OAuth device flow — opens a browser page for you to approve | `client_id` |
+| `start_auth` | Returns an authorization URL — open it in your browser to approve access | `client_id` |
+| `save_token` | Saves the token you copied from the browser authorization page | `access_token` |
 | `get_user_id` | Returns your Yandex Webmaster user ID | Nothing |
 | `get_hosts` | Lists all sites added to your Yandex Webmaster account | `user_id` |
 | `add_host` | Adds a new site to Yandex Webmaster | `user_id`, `host_url` |
@@ -64,7 +65,7 @@ You need a Yandex OAuth application to authorize the server to access your Webma
 1. Open [https://oauth.yandex.ru/client/new](https://oauth.yandex.ru/client/new) in your browser
 2. Fill in **App name** — for example, `Webmaster MCP`
 3. Under **Platforms**, select **Web services**
-4. In the **Callback URI** field, enter exactly: `https://oauth.yandex.ru`
+4. In the **Callback URI** field, enter exactly: `https://oauth.yandex.ru/verification_code`
 5. Under **Access**, expand **Yandex.Webmaster** and enable these two scopes:
    - `webmaster:hostinfo`
    - `webmaster:verify`
@@ -126,10 +127,10 @@ You should see output like `uv 0.5.x`. If you see `command not found`, see the [
 Add the server to your project or global MCP settings. Run the following from your project directory or home directory:
 
 ```bash
-claude mcp add ywm --command "uvx" --args "--from,git+https://github.com/skharitonov/mcp-ywm,ywm-mcp"
+claude mcp add --scope project ywm -- uvx --from git+https://github.com/skharitonov/mcp-ywm ywm-mcp
 ```
 
-> The comma-separated `--args` format above is equivalent to the JSON array form `["--from", "git+https://github.com/skharitonov/mcp-ywm", "ywm-mcp"]` shown in the JSON config below.
+> Use `--scope user` instead of `--scope project` to make the server available across all your projects rather than just the current one.
 
 Or edit `~/.claude/settings.json` directly and add an entry under `mcpServers`:
 
@@ -177,19 +178,19 @@ After saving the config file, **fully quit the app** (on macOS: `Cmd+Q`, not jus
 
 ### Step 4 — Authenticate
 
-Once the server is configured, open Claude and run the authentication flow. Start by asking for setup instructions:
-
-```
-Call setup_oauth_app
-```
-
-The server will return the exact steps for creating a Yandex OAuth app (same as Step 1 above, in case you need a reminder). Then start the authorization flow with the `client_id` you copied:
+Once the server is configured, open Claude and start the authorization flow with the `client_id` you copied in Step 1:
 
 ```
 Call start_auth with client_id "YOUR_CLIENT_ID_HERE"
 ```
 
-The server will display a URL and a short code. Open the URL in your browser, enter the code, and approve access. The server polls in the background and saves the token automatically once you approve.
+The server returns an authorization URL. Open it in your browser, log in with your Yandex account, and click **Allow**.
+
+Yandex will redirect you to a page at `oauth.yandex.ru` that displays your access token. Copy the token value shown on that page, then save it:
+
+```
+Call save_token with access_token "YOUR_TOKEN_HERE"
+```
 
 The token is stored at:
 
@@ -199,7 +200,7 @@ The token is stored at:
 
 > **Override the storage location:** Set `YANDEX_WEBMASTER_TOKEN_DIR` in the MCP config's `env` block to store the token in a custom directory. This is useful for shared environments or CI systems.
 
-After the browser approval, you will see: `Authentication successful! Token saved to: <path>`. You are now ready to use all tools.
+After calling `save_token` successfully, you will see: `Token saved to: <path>`. You are now ready to use all tools.
 
 ---
 

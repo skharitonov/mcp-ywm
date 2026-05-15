@@ -41,48 +41,57 @@ def setup_oauth_app() -> str:
 1. Open https://oauth.yandex.ru/client/new in your browser
 2. Fill in "App name": e.g. "Webmaster MCP"
 3. Under "Platforms" select "Web services"
-4. In "Callback URI" enter: https://oauth.yandex.ru
+4. In "Callback URI" enter exactly: https://oauth.yandex.ru/verification_code
 5. Under "Access" expand "Yandex.Webmaster" and enable:
    - webmaster:hostinfo
    - webmaster:verify
 6. Click "Create app"
 7. Copy the CLIENT_ID shown on the next page
 
-Then call: start_auth(client_id="YOUR_CLIENT_ID")"""
+Then call: start_auth(client_id="YOUR_CLIENT_ID")
+It will return a URL — open it in your browser, approve access, copy the token,
+and call: save_token(access_token="YOUR_TOKEN")"""
 
 
 @mcp.tool()
 def start_auth(client_id: str) -> str:
-    """Start Yandex OAuth device flow. Opens a browser page for you to approve access.
+    """Generate a Yandex OAuth authorization URL. Open it in your browser to approve access.
+
+    After approving, Yandex redirects you to a page that shows your access token.
+    Copy the token and pass it to save_token to complete authentication.
 
     Args:
         client_id: Your Yandex OAuth app client_id (from oauth.yandex.ru)
     """
+    auth_url = OAuthFlow.get_auth_url(client_id)
+    return json.dumps({
+        "auth_url": auth_url,
+        "instructions": (
+            f"Step 1: Open this URL in your browser:\n  {auth_url}\n\n"
+            "Step 2: Log in with your Yandex account and click 'Allow'\n\n"
+            "Step 3: You will be redirected to a page at oauth.yandex.ru that shows your token. "
+            "Copy the access_token value from that page.\n\n"
+            "Step 4: Call save_token with the copied token to complete authentication."
+        ),
+    }, ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def save_token(access_token: str) -> str:
+    """Save a Yandex OAuth token obtained from the browser authorization flow.
+
+    Call this after completing the start_auth browser flow and copying your token.
+
+    Args:
+        access_token: The OAuth token shown on the Yandex authorization page
+    """
+    global _client
     try:
-        flow = OAuthFlow()
-        device_data = flow.request_device_code(client_id)
-        verification_url = device_data.get("verification_url", "https://ya.ru/device")
-        user_code = device_data.get("user_code", "")
-        device_code = device_data.get("device_code")
-        if not device_code:
-            raise WebmasterAPIError(400, "INVALID_DEVICE_CODE", "Server did not return device_code")
-
-        result = (
-            f"Open this URL in your browser and enter the code shown:\n\n"
-            f"  URL:  {verification_url}\n"
-            f"  Code: {user_code}\n\n"
-            f"Waiting for approval (up to 5 minutes)..."
-        )
-
-        # Poll blocks until approved or timeout
-        access_token = flow.poll_for_token(client_id, device_code)
-        token_path = flow.save_token(access_token)
-
-        return result + f"\n\nAuthentication successful! Token saved to: {token_path}"
-    except WebmasterAPIError as e:
-        return _err(e)
+        token_path = OAuthFlow.save_token(access_token)
+        _client = None  # Reset singleton so next call picks up new token
+        return json.dumps({"success": True, "message": f"Token saved to: {token_path}"}, ensure_ascii=False, indent=2)
     except (OSError, ValueError) as e:
-        return json.dumps({"error": True, "error_code": "TOKEN_SAVE_ERROR", "message": str(e)}, ensure_ascii=False)
+        return json.dumps({"error": True, "error_code": "TOKEN_SAVE_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════
