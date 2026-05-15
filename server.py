@@ -49,7 +49,8 @@ def setup_oauth_app() -> str:
 7. Copy the CLIENT_ID shown on the next page
 
 Then call: start_auth(client_id="YOUR_CLIENT_ID")
-It will return a URL — open it in your browser, approve access, copy the token,
+It saves your client_id to client_secret.json and returns an authorization URL.
+Open that URL in your browser, approve access, copy the token from the redirect page,
 and call: save_token(access_token="YOUR_TOKEN")"""
 
 
@@ -57,21 +58,27 @@ and call: save_token(access_token="YOUR_TOKEN")"""
 def start_auth(client_id: str) -> str:
     """Generate a Yandex OAuth authorization URL. Open it in your browser to approve access.
 
-    After approving, Yandex redirects you to a page that shows your access token.
-    Copy the token and pass it to save_token to complete authentication.
+    Saves client_id to client_secret.json so it is available for re-authentication when the token expires.
+    After approving in the browser, copy the token from the redirect page and call save_token.
 
     Args:
         client_id: Your Yandex OAuth app client_id (from oauth.yandex.ru)
     """
+    try:
+        secret_path = OAuthFlow.save_client_id(client_id)
+    except (OSError, ValueError) as e:
+        return json.dumps({"error": True, "error_code": "CLIENT_ID_SAVE_ERROR", "message": str(e)}, ensure_ascii=False, indent=2)
+
     auth_url = OAuthFlow.get_auth_url(client_id)
     return json.dumps({
+        "client_id_saved_to": str(secret_path),
         "auth_url": auth_url,
         "instructions": (
             f"Step 1: Open this URL in your browser:\n  {auth_url}\n\n"
             "Step 2: Log in with your Yandex account and click 'Allow'\n\n"
             "Step 3: You will be redirected to a page at oauth.yandex.ru that shows your token. "
             "Copy the access_token value from that page.\n\n"
-            "Step 4: Call save_token with the copied token to complete authentication."
+            "Step 4: Call save_token(access_token='TOKEN') to complete authentication."
         ),
     }, ensure_ascii=False, indent=2)
 
@@ -80,7 +87,7 @@ def start_auth(client_id: str) -> str:
 def save_token(access_token: str) -> str:
     """Save a Yandex OAuth token obtained from the browser authorization flow.
 
-    Call this after completing the start_auth browser flow and copying your token.
+    Call this after completing the start_auth browser flow and copying your token from the browser.
 
     Args:
         access_token: The OAuth token shown on the Yandex authorization page

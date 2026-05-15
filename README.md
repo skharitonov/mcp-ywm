@@ -184,7 +184,7 @@ Once the server is configured, open Claude and start the authorization flow with
 Call start_auth with client_id "YOUR_CLIENT_ID_HERE"
 ```
 
-The server returns an authorization URL. Open it in your browser, log in with your Yandex account, and click **Allow**.
+The server saves your `client_id` to `client_secret.json` and returns an authorization URL. Open it in your browser, log in with your Yandex account, and click **Allow**.
 
 Yandex will redirect you to a page at `oauth.yandex.ru` that displays your access token. Copy the token value shown on that page, then save it:
 
@@ -192,15 +192,16 @@ Yandex will redirect you to a page at `oauth.yandex.ru` that displays your acces
 Call save_token with access_token "YOUR_TOKEN_HERE"
 ```
 
-The token is stored at:
+Config files are stored at:
 
-- **macOS:** `~/Library/Application Support/yandex-webmaster-mcp/token.json`
-- **Linux:** `~/.config/yandex-webmaster-mcp/token.json`
-- **Windows:** `%APPDATA%\yandex-webmaster-mcp\token.json`
-
-> **Override the storage location:** Set `YANDEX_WEBMASTER_TOKEN_DIR` in the MCP config's `env` block to store the token in a custom directory. This is useful for shared environments or CI systems.
+| File | Contents | OS default location |
+|------|----------|-------------------|
+| `client_secret.json` | `client_id` (saved by `start_auth`) | See [Environment Variables Reference](#environment-variables-reference) |
+| `token.json` | OAuth access token (saved by `save_token`) | See [Environment Variables Reference](#environment-variables-reference) |
 
 After calling `save_token` successfully, you will see: `Token saved to: <path>`. You are now ready to use all tools.
+
+When your token expires, call `start_auth` again — your `client_id` is already saved in `client_secret.json`, so the server will remind you of it in any authentication error messages.
 
 ---
 
@@ -255,29 +256,38 @@ When you pass a `host_id` to any tool, URL-encoding (e.g. `https%3Aexample.com%3
 
 ## Environment Variables Reference
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `YANDEX_WEBMASTER_API_KEY` | No | — | A Yandex OAuth token. Set this to skip the `start_auth` flow entirely. Useful for CI or shared environments where running an interactive browser flow is not practical. |
-| `YANDEX_WEBMASTER_TOKEN_DIR` | No | Platform config dir | Directory where `token.json` is stored after `start_auth`. Override when you want to control exactly where the token lives. |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `YANDEX_WEBMASTER_CONFIG_PATH` | Platform config dir | Directory for `token.json` and `client_secret.json`. Override to control where all config files live. |
+| `YANDEX_WEBMASTER_TOKEN_FILE` | `{config_dir}/token.json` | Absolute path to a specific token file. Use this to run multiple MCP server instances with different Yandex accounts — point each instance at its own `token-account1.json`, `token-account2.json`, etc. |
+| `YANDEX_WEBMASTER_CLIENT_ID_FILE` | `{config_dir}/client_secret.json` | Absolute path to a specific `client_secret.json` file. |
 
-To pass environment variables to the server, add an `env` block to your MCP config entry:
+**Default config locations:**
+
+| OS | Path |
+|----|------|
+| macOS | `~/Library/Application Support/yandex-webmaster-mcp/` |
+| Linux | `~/.config/yandex-webmaster-mcp/` |
+| Windows | `%LOCALAPPDATA%\yandex-webmaster-mcp\` |
+
+**Multi-account example** — two MCP server entries, each with its own token file:
 
 ```json
 {
   "mcpServers": {
-    "ywm": {
-      "command": "/Users/yourname/.local/bin/uvx",
+    "ywm-site1": {
+      "command": "uvx",
       "args": ["--from", "git+https://github.com/skharitonov/mcp-ywm", "ywm-mcp"],
-      "env": {
-        "YANDEX_WEBMASTER_API_KEY": "your_token_here"
-      }
+      "env": { "YANDEX_WEBMASTER_TOKEN_FILE": "/path/to/token-site1.json" }
+    },
+    "ywm-site2": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/skharitonov/mcp-ywm", "ywm-mcp"],
+      "env": { "YANDEX_WEBMASTER_TOKEN_FILE": "/path/to/token-site2.json" }
     }
   }
 }
 ```
-
-> **macOS/Linux:** Use the full uvx path from `which uvx` (typically `/Users/yourname/.local/bin/uvx` on macOS or `/home/yourname/.local/bin/uvx` on Linux)  
-> **Windows:** Use the full uvx path from `(Get-Command uvx).Source` (typically `C:\Users\yourname\.local\bin\uvx.exe`)
 
 ---
 

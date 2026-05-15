@@ -17,16 +17,28 @@ RETRY_STATUSES = {500, 502, 503}
 AUTH_URL = "https://oauth.yandex.ru/authorize"
 
 
-def _token_dir() -> Path:
-    """Return token storage directory, respecting YANDEX_WEBMASTER_TOKEN_DIR override."""
-    override = os.environ.get("YANDEX_WEBMASTER_TOKEN_DIR")
+def _config_dir() -> Path:
+    """Return config directory. Respects YANDEX_WEBMASTER_CONFIG_PATH env var."""
+    override = os.environ.get("YANDEX_WEBMASTER_CONFIG_PATH")
     if override:
         return Path(override)
-    return Path(user_config_dir("yandex-webmaster-mcp"))
+    return Path(user_config_dir("yandex-webmaster-mcp", appauthor=False))
 
 
 def _token_path() -> Path:
-    return _token_dir() / "token.json"
+    """Return token file path. Respects YANDEX_WEBMASTER_TOKEN_FILE env var."""
+    override = os.environ.get("YANDEX_WEBMASTER_TOKEN_FILE")
+    if override:
+        return Path(override)
+    return _config_dir() / "token.json"
+
+
+def _client_secret_path() -> Path:
+    """Return client_secret file path. Respects YANDEX_WEBMASTER_CLIENT_ID_FILE env var."""
+    override = os.environ.get("YANDEX_WEBMASTER_CLIENT_ID_FILE")
+    if override:
+        return Path(override)
+    return _config_dir() / "client_secret.json"
 
 
 class WebmasterAPIError(Exception):
@@ -43,14 +55,8 @@ class WebmasterClient:
     """Sync HTTP client for Yandex Webmaster API."""
 
     def __init__(self, token: str | None = None):
-        # Auth priority:
-        # 1. Explicit token arg (used by OAuthFlow after saving)
-        # 2. YANDEX_WEBMASTER_API_KEY env var
-        # 3. Token file (respects YANDEX_WEBMASTER_TOKEN_DIR)
         if token:
             self.token = token
-        elif os.environ.get("YANDEX_WEBMASTER_API_KEY"):
-            self.token = os.environ["YANDEX_WEBMASTER_API_KEY"]
         else:
             path = _token_path()
             if path.exists():
@@ -62,9 +68,17 @@ class WebmasterClient:
                 except (json.JSONDecodeError, OSError, ValueError) as e:
                     raise ValueError(f"Failed to read token file at {path}: {e}")
             else:
+                hint = ""
+                secret = _client_secret_path()
+                if secret.exists():
+                    try:
+                        cid = json.loads(secret.read_text()).get("client_id", "")
+                        if cid:
+                            hint = f" Saved client_id: {cid}. Call start_auth(client_id='{cid}') to re-authenticate."
+                    except Exception:
+                        pass
                 raise ValueError(
-                    "No authentication found. "
-                    "Run start_auth(client_id) to authenticate, or set YANDEX_WEBMASTER_API_KEY."
+                    f"No token found at {path}. Run start_auth to authenticate.{hint}"
                 )
 
         self._client = httpx.Client(
@@ -94,7 +108,6 @@ class WebmasterClient:
         json_body: dict | None = None,
     ) -> dict | list | None:
         """Make HTTP request with retry on 500/502/503."""
-        # Build query params, supporting list values (e.g. query_indicator)
         raw_params: list[tuple[str, str]] = []
         if params:
             for key, val in params.items():
@@ -167,10 +180,26 @@ class OAuthFlow:
         return f"{AUTH_URL}?response_type=token&client_id={client_id}"
 
     @staticmethod
+    def save_client_id(client_id: str) -> Path:
+        """Save client_id to client_secret.json in config dir."""
+        path = _client_secret_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"client_id": client_id}))
+        return path
+
+    @staticmethod
+    def load_client_id() -> str:
+        """Read saved client_id from client_secret.json. Returns empty string if not found."""
+        path = _client_secret_path()
+        try:
+            return json.loads(path.read_text()).get("client_id", "")
+        except Exception:
+            return ""
+
+    @staticmethod
     def save_token(access_token: str) -> Path:
-        """Save token to platform config dir (or YANDEX_WEBMASTER_TOKEN_DIR override)."""
-        dir_path = _token_dir()
-        dir_path.mkdir(parents=True, exist_ok=True)
-        token_file = dir_path / "token.json"
-        token_file.write_text(json.dumps({"access_token": access_token, "token_type": "bearer"}))
-        return token_file
+        """Save access token to token.json in config dir."""
+        path = _token_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"access_token": access_token, "token_type": "bearer"}))
+        return path
